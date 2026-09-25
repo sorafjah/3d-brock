@@ -101,7 +101,7 @@
 </script>
 </head>
 <body>
-<!-- build: 2026-09-24 第1段階 -->
+<!-- build: 2026-09-25 第1段階 調整1 -->
 <div id="game"></div>
 
 <div id="hud">
@@ -148,21 +148,13 @@
           <rect x="6" y="6" width="148" height="98" fill="#0d1435" stroke="#3a4ea0" stroke-width="2"/>
           <rect x="62" y="40" width="36" height="28" fill="#141c46" stroke="#3a4ea0" stroke-width="2"/>
           <path d="M6 6 L62 40 M154 6 L98 40 M6 104 L62 68 M154 104 L98 68" stroke="#3a4ea0" stroke-width="2"/>
-          <rect x="36" y="24" width="88" height="61" fill="none" stroke="#4ff0ff" stroke-width="4"/>
-          <circle cx="92" cy="50" r="7" fill="#fff"/>
+          <defs><filter id="gl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
+            <radialGradient id="bl" cx=".38" cy=".35" r=".7"><stop offset="0" stop-color="#fff"/><stop offset=".6" stop-color="#cfd9ff"/><stop offset="1" stop-color="#6f80c8"/></radialGradient></defs>
+          <path d="M28 19 L36 24 L36 85 L28 90 M132 19 L124 24 L124 85 L132 90 M28 19 L132 19 L124 24 L36 24 M28 90 L132 90 L124 85 L36 85" fill="none" stroke="#4ff0ff" stroke-width="7" opacity=".55" filter="url(#gl)"/>
+          <circle cx="92" cy="50" r="8" fill="url(#bl)"/>
           <ellipse cx="92" cy="84" rx="7" ry="2.5" fill="#000" opacity=".6"/>
         </svg>
-        <div><span style="color:#4ff0ff">ひかる わく</span>が ボールの<br><ruby>奥<rt>おく</rt></ruby>ゆきを おしえてくれる</div>
-      </div>
-      <div class="card">
-        <svg viewBox="0 0 160 110">
-          <rect x="6" y="6" width="148" height="98" rx="8" fill="#070b1f" stroke="#3a4ea0" stroke-width="2"/>
-          <rect x="40" y="40" width="64" height="44" rx="4" fill="rgba(79,209,255,.2)" stroke="#4fd1ff" stroke-width="3"/>
-          <circle cx="96" cy="58" r="9" fill="none" stroke="#ffcc33" stroke-width="3"/>
-          <circle cx="126" cy="30" r="6" fill="#fff"/>
-          <path d="M120 36 L104 50" stroke="#fff" stroke-width="2" stroke-dasharray="3 3"/>
-        </svg>
-        <div><span style="color:#ffcc33">きいろい まる</span>に<br>パドルを あわせよう</div>
+        <div><ruby>壁<rt>かべ</rt></ruby>の <span style="color:#4ff0ff">ひかる おび</span>で<br>ボールの <ruby>奥<rt>おく</rt></ruby>ゆきが わかる<br><span style="font-size:15px;color:#a9b6e8">（むずかしい では でないよ）</span></div>
       </div>
       <div class="card">
         <svg viewBox="0 0 160 110">
@@ -220,7 +212,7 @@
 <script type="module">
 import * as THREE from 'three';
 
-const VERSION = 'v2026-09-24';
+const VERSION = 'v2026-09-25';
 document.getElementById('ver').textContent = VERSION;
 
 /* ============================================================
@@ -250,9 +242,9 @@ const BHALF = 0.5;                            // ブロック当たり判定の�
 const MISS_Z = 1.5;                           // これより手前に来たらミス
 
 const DIFFS = {
-  easy:   { speed: 6.5,  pw: 3.0, ph: 2.2,  marker: true  },
-  normal: { speed: 8.5,  pw: 2.4, ph: 1.8,  marker: true  },
-  hard:   { speed: 10.5, pw: 1.8, ph: 1.35, marker: false },
+  easy:   { speed: 6.5, pw: 3.0, ph: 2.2,  ring: true  },
+  normal: { speed: 8.5, pw: 2.4, ph: 1.8,  ring: true  },
+  hard:   { speed: 9.0, pw: 1.8, ph: 1.35, ring: false },   // 速さは控えめ、奥ゆきの帯なし
 };
 
 // ステージ：セル座標 [i(横0-6), j(縦0-4), k(奥0-)]
@@ -355,15 +347,56 @@ function makeFrame(w, h, t, color, opacity){
 }
 const mouth = makeFrame(W, H, 0.06, '#ffffff', 0.35);
 scene.add(mouth);
-const depthRing = makeFrame(W, H, 0.1, '#4ff0ff', 0.95);
+
+// 深さの帯：ボールと同じ深さで、壁・床・天井をやわらかく光らせる
+function glowTex(horizontal){
+  const c = document.createElement('canvas'); c.width = horizontal ? 128 : 4; c.height = horizontal ? 4 : 128;
+  const x = c.getContext('2d');
+  const g = horizontal ? x.createLinearGradient(0,0,128,0) : x.createLinearGradient(0,0,0,128);
+  g.addColorStop(0,   'rgba(79,240,255,0)');
+  g.addColorStop(0.35,'rgba(79,240,255,0.35)');
+  g.addColorStop(0.5, 'rgba(180,250,255,1)');
+  g.addColorStop(0.65,'rgba(79,240,255,0.35)');
+  g.addColorStop(1,   'rgba(79,240,255,0)');
+  x.fillStyle = g; x.fillRect(0,0,c.width,c.height);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const BAND = 1.4;   // 帯の奥ゆき方向の幅
+const bandMatV = new THREE.MeshBasicMaterial({ map:glowTex(false), transparent:true, opacity:0.5, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide });
+const bandMatH = new THREE.MeshBasicMaterial({ map:glowTex(true),  transparent:true, opacity:0.5, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide });
+const depthRing = new THREE.Group();
+{
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(W, BAND), bandMatV); fl.rotation.x = -Math.PI/2; fl.position.y = -HY + 0.01;
+  const ce = new THREE.Mesh(new THREE.PlaneGeometry(W, BAND), bandMatV); ce.rotation.x =  Math.PI/2; ce.position.y =  HY - 0.01;
+  const le = new THREE.Mesh(new THREE.PlaneGeometry(BAND, H), bandMatH); le.rotation.y =  Math.PI/2; le.position.x = -HX + 0.01;
+  const ri = new THREE.Mesh(new THREE.PlaneGeometry(BAND, H), bandMatH); ri.rotation.y = -Math.PI/2; ri.position.x =  HX - 0.01;
+  fl.userData.axis = ce.userData.axis = 'y'; le.userData.axis = ri.userData.axis = 'x';
+  depthRing.add(fl, ce, le, ri);
+}
 depthRing.renderOrder = 5;
 scene.add(depthRing);
 
 // --- ボール ---
-const ballMat = new THREE.MeshStandardMaterial({ color:'#ffffff', emissive:'#ffffff', emissiveIntensity:0.4, roughness:0.3 });
-const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(R, 28, 18), ballMat);
+// 陰影とハイライトで球に見えるよう、発光は弱めにして光を当てる
+const ballMat = new THREE.MeshPhongMaterial({ color:'#ffffff', emissive:'#1a2250', specular:'#ffffff', shininess:70 });
+const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(R, 40, 28), ballMat);
 scene.add(ballMesh);
-const COL_FAR = new THREE.Color('#b8c8ff'), COL_NEAR = new THREE.Color('#ffffff');
+const ballLight = new THREE.DirectionalLight(0xffffff, 1.6);   // ボール専用の左上からの光
+ballLight.position.set(-3, 5, 6);
+scene.add(ballLight); scene.add(ballLight.target);
+// ボールのまわりのうっすらした光（球の輪郭はつぶさない程度）
+function haloTex(){
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), g = x.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'rgba(200,220,255,0.55)'); g.addColorStop(0.45,'rgba(160,190,255,0.18)'); g.addColorStop(1,'rgba(160,190,255,0)');
+  x.fillStyle = g; x.fillRect(0,0,64,64);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:haloTex(), transparent:true, depthWrite:false, blending:THREE.AdditiveBlending }));
+halo.scale.setScalar(R*4.2);
+scene.add(halo);
+const COL_FAR = new THREE.Color('#aab8f0'), COL_NEAR = new THREE.Color('#ffffff');
 
 // --- 影（床・左右の壁） ---
 const shadowGeo = new THREE.CircleGeometry(R*1.3, 24);
@@ -372,17 +405,6 @@ const shFloor = makeShadow(0.75); shFloor.rotation.x = -Math.PI/2; scene.add(shF
 const shLeft  = makeShadow(0.4); shLeft.rotation.y  =  Math.PI/2; scene.add(shLeft);
 const shRight = makeShadow(0.4); shRight.rotation.y = -Math.PI/2; scene.add(shRight);
 
-// --- 着地マーカー ---
-const marker = new THREE.Group();
-{
-  const m = new THREE.MeshBasicMaterial({ color:'#ffe14d', transparent:true, opacity:1, depthWrite:false, side:THREE.DoubleSide });
-  marker.add(new THREE.Mesh(new THREE.RingGeometry(R*0.95, R*1.3, 36), m));
-  const dot = new THREE.Mesh(new THREE.CircleGeometry(R*0.18, 16), m);
-  marker.add(dot);
-  marker.userData.mat = m;
-  marker.renderOrder = 6;
-}
-scene.add(marker);
 
 // --- パドル ---
 const paddleGrp = new THREE.Group();
@@ -800,8 +822,8 @@ const tmpCol = new THREE.Color();
 function syncVisuals(dt){
   const p = G.ball.p;
   const active = G.state === 'ready' || G.state === 'play';
-  ballMesh.visible = active;
-  depthRing.visible = active;
+  ballMesh.visible = halo.visible = active;
+  depthRing.visible = active && G.diff.ring;
   shFloor.visible = shLeft.visible = shRight.visible = active;
 
   // パドル
@@ -816,33 +838,24 @@ function syncVisuals(dt){
     ballMesh.position.copy(p);
     const near = THREE.MathUtils.clamp(1 + p.z/12, 0, 1);   // 手前ほど1
     tmpCol.copy(COL_FAR).lerp(COL_NEAR, near);
-    ballMat.color.copy(tmpCol); ballMat.emissive.copy(tmpCol);
-    ballMat.emissiveIntensity = 0.6 + near*0.4;
+    ballMat.color.copy(tmpCol);
     ballMesh.scale.setScalar(1 + near*0.12);
+    halo.position.copy(p);
+    halo.material.opacity = 0.5 + near*0.5;
+    ballLight.target.position.copy(p);
+    ballLight.position.set(p.x - 3, p.y + 5, p.z + 6);
 
     depthRing.position.z = p.z;
-    // 奥にあっても細く見えないよう、枠の太さを距離に合わせて太くする
-    const th = (camDist - p.z) / camDist;
-    const [ra, rb, rc, rd] = depthRing.children;
-    ra.scale.set(1, th, th); rb.scale.set(1, th, th); rc.scale.set(th, 1, th); rd.scale.set(th, 1, th);
-    depthRing.userData.mat.opacity = 0.55 + near*0.4;
+    // 奥にあっても細く見えないよう、帯の幅を距離に合わせて広げる
+    const th = Math.min((camDist - p.z) / camDist, 2.2);
+    for (const m of depthRing.children) m.scale[m.userData.axis] = th;
+    bandMatV.opacity = bandMatH.opacity = 0.35 + near*0.25;
 
     shFloor.position.set(p.x, -HY + 0.015, p.z);
     shLeft.position.set(-HX + 0.015, p.y, p.z);
     shRight.position.set(HX - 0.015, p.y, p.z);
   }
 
-  // 着地マーカー（アシスト）
-  const pr = G.prediction;
-  if (pr && G.diff.marker){
-    marker.visible = true;
-    marker.position.set(pr.x, pr.y, 0.03);
-    const k = Math.min(pr.t, 2) / 2;               // 0=到着直前
-    marker.scale.setScalar(1 + k*0.5);
-    marker.userData.mat.opacity = 1 - k*0.3;
-  } else {
-    marker.visible = false;
-  }
 }
 
 /* ============================================================
