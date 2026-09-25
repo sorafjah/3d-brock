@@ -117,7 +117,7 @@
 </script>
 </head>
 <body>
-<!-- build: 2026-09-25 第2段階 -->
+<!-- build: 2026-09-25 第2段階 ステージ3調整 -->
 <div id="game"></div>
 
 <div id="hud">
@@ -247,7 +247,7 @@
 <script type="module">
 import * as THREE from 'three';
 
-const VERSION = 'v2026-09-25-2';
+const VERSION = 'v2026-09-25-3';
 document.getElementById('ver').textContent = VERSION;
 
 /* ============================================================
@@ -307,10 +307,13 @@ function stage2(){
   return c;
 }
 function stage3(){
+  // 一番下は少なめ（手前に3こ・奥に1こ）。上に つむほど ほしブロックが多い
   const c = [];
-  for (let i=2;i<=4;i++) for (let k=0;k<=2;k++) c.push([i,0,k, (k===0&&(i===2||i===4))?'h':'n']);
-  c.push([3,1,0,'n'],[3,1,1,'n'],[3,1,2,'n'],[2,1,1,'n'],[4,1,1,'n']);
-  c.push([3,2,1,'s']);
+  c.push([2,0,1,'n'],[3,0,1,'n'],[4,0,1,'n']);   // いちばん した
+  c.push([2,1,1,'s'],[3,1,1,'n'],[4,1,1,'s']);
+  c.push([3,2,1,'n']);
+  c.push([3,3,1,'s']);                           // てっぺん
+  c.push([3,0,3,'n'],[3,1,3,'n'],[3,2,3,'s'],[3,3,3,'n']);   // おくの はしら
   return c;
 }
 function stage4(){
@@ -339,7 +342,7 @@ const STAGES = [
     panels:[{side:'L',a:0,z:-5},{side:'R',a:1,z:-15}] },
   { name:'ふたつの はこ', cells: stage2(), fall:false,
     panels:[{side:'T',a:0,z:-6},{side:'L',a:-1,z:-16}] },
-  { name:'ピラミッド', cells: stage3(), fall:true,
+  { name:'つみきの とう', cells: stage3(), fall:true,
     panels:[{side:'L',a:1,z:-6},{side:'R',a:1,z:-6}] },
   { name:'たなの うえ', cells: stage4(), fall:true,
     panels:[{side:'T',a:0,z:-7},{side:'R',a:-1,z:-17}] },
