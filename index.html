@@ -65,6 +65,22 @@
   }
   #banner.show{opacity:1;}
   #banner .s{font-size:24px;}
+  #pops{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:4;}
+  .pop{
+    position:absolute; transform:translate(-50%,-50%); font-weight:700; white-space:nowrap;
+    text-shadow:0 2px 4px #000, 0 0 10px rgba(0,0,0,.6); animation:popUp 1.1s ease-out forwards;
+  }
+  .pop.item{font-size:40px;}
+  .pop.item small{display:block; font-size:20px; text-align:center;}
+  .pop.blk{font-size:22px; color:#fff; animation-duration:.8s;}
+  @keyframes popUp{
+    0%{opacity:0; margin-top:10px; transform:translate(-50%,-50%) scale(.6);}
+    15%{opacity:1; transform:translate(-50%,-50%) scale(1.15);}
+    30%{transform:translate(-50%,-50%) scale(1);}
+    100%{opacity:0; margin-top:-70px;}
+  }
+  #hScore{display:inline-block; transition:transform .12s;}
+  #hScore.bump{transform:scale(1.35); color:#ffe14d;}
   #ver{
     position:fixed; right:8px; bottom:calc(env(safe-area-inset-bottom, 0px) + 4px);
     font-size:11px; color:var(--sub); opacity:.6; pointer-events:none;
@@ -117,7 +133,7 @@
 </script>
 </head>
 <body>
-<!-- build: 2026-09-25 第2段階 ステージ3調整 -->
+<!-- build: 2026-09-25 第2段階 調整4 -->
 <div id="game"></div>
 
 <div id="hud">
@@ -130,6 +146,7 @@
 <button id="pauseBtn" class="hbtn" aria-label="いちじていし">❚❚</button>
 <button id="helpBtn" class="hbtn" aria-label="あそびかた">？</button>
 <div id="hint" class="hidden">タップで ボールを うつ</div>
+<div id="pops"></div>
 <div id="banner"></div>
 <div id="ver"></div>
 
@@ -211,7 +228,7 @@
     <div class="legend" id="blockLegend"></div>
 
     <h3>アイテム</h3>
-    <p style="font-size:18px">ブロックや <ruby>壁<rt>かべ</rt></ruby>の <span style="color:#ff6fe0">ひかる ほしマーク</span>に ボールを あてると でてくる。<br>パドルで キャッチしよう！</p>
+    <p style="font-size:18px">ブロックや <ruby>壁<rt>かべ</rt></ruby>の <span style="color:#ff6fe0">ひかる ほしマーク</span>に ボールを あてると でてくる。<br>パドルで キャッチすると <b style="color:#ffe14d">+300てん</b>！</p>
     <div class="legend" id="itemLegend"></div>
 
     <div id="diffBox">
@@ -247,7 +264,7 @@
 <script type="module">
 import * as THREE from 'three';
 
-const VERSION = 'v2026-09-25-3';
+const VERSION = 'v2026-09-25-4';
 document.getElementById('ver').textContent = VERSION;
 
 /* ============================================================
@@ -307,13 +324,13 @@ function stage2(){
   return c;
 }
 function stage3(){
-  // 一番下は少なめ（手前に3こ・奥に1こ）。上に つむほど ほしブロックが多い
+  // つみきの かべ（1まいの面）。いちばん下は てつ2こ＋木3こだけ。
+  // したを こわすと その列が まるごと 1だん おちる。ほしは上のほうに多め。
   const c = [];
-  c.push([2,0,1,'n'],[3,0,1,'n'],[4,0,1,'n']);   // いちばん した
-  c.push([2,1,1,'s'],[3,1,1,'n'],[4,1,1,'s']);
-  c.push([3,2,1,'n']);
-  c.push([3,3,1,'s']);                           // てっぺん
-  c.push([3,0,3,'n'],[3,1,3,'n'],[3,2,3,'s'],[3,3,3,'n']);   // おくの はしら
+  c.push([1,0,1,'x'],[2,0,1,'n'],[3,0,1,'n'],[4,0,1,'n'],[5,0,1,'x']);   // いちばん した
+  for (let i=1;i<=5;i++) c.push([i,1,1, 'n']);
+  for (let i=1;i<=5;i++) c.push([i,2,1, (i===1||i===5)?'s':'n']);
+  c.push([2,3,1,'s'],[3,3,1,'n'],[4,3,1,'s']);                            // てっぺん
   return c;
 }
 function stage4(){
@@ -342,7 +359,7 @@ const STAGES = [
     panels:[{side:'L',a:0,z:-5},{side:'R',a:1,z:-15}] },
   { name:'ふたつの はこ', cells: stage2(), fall:false,
     panels:[{side:'T',a:0,z:-6},{side:'L',a:-1,z:-16}] },
-  { name:'つみきの とう', cells: stage3(), fall:true,
+  { name:'つみきの かべ', cells: stage3(), fall:true,
     panels:[{side:'L',a:1,z:-6},{side:'R',a:1,z:-6}] },
   { name:'たなの うえ', cells: stage4(), fall:true,
     panels:[{side:'T',a:0,z:-7},{side:'R',a:-1,z:-17}] },
@@ -458,9 +475,9 @@ function drawIcon(ctx, type, S){
       tri([50,11],[42,24],[58,24]); tri([50,89],[42,76],[58,76]); tri([11,50],[24,42],[24,58]); tri([89,50],[76,42],[76,58]);
       break;
     case 'pierce':
-      ctx.lineWidth = 5*u; ctx.strokeRect(42*u, 34*u, 22*u, 32*u);
-      ctx.lineWidth = 8*u; ctx.beginPath(); ctx.moveTo(16*u,50*u); ctx.lineTo(72*u,50*u); ctx.stroke();
-      tri([88,50],[70,38],[70,62]);
+      ctx.lineWidth = 5*u; ctx.strokeRect(34*u, 42*u, 32*u, 22*u);
+      ctx.lineWidth = 8*u; ctx.beginPath(); ctx.moveTo(50*u,84*u); ctx.lineTo(50*u,28*u); ctx.stroke();
+      tri([50,12],[38,30],[62,30]);
       break;
     case 'bomb':
       ctx.beginPath(); ctx.arc(45*u, 57*u, 23*u, 0, 7); ctx.fill();
@@ -753,6 +770,25 @@ $('itemLegend').innerHTML = Object.keys(ITEMS).map(t =>
   `<div><img src="${iconURL[t]}" alt=""><span><b>${ITEMS[t].name}</b>${ITEMS[t].desc}</span></div>`).join('');
 
 let bannerTimer = 0;
+// とくてんを その場所に うかべて表示する
+function popScore(pos, text, cls, color){
+  const v = pos.clone().project(camera);
+  if (v.z > 1) return;
+  const el = document.createElement('div');
+  el.className = 'pop ' + cls;
+  el.innerHTML = text;
+  if (color) el.style.color = color;
+  el.style.left = ((v.x + 1) / 2 * window.innerWidth) + 'px';
+  el.style.top  = ((1 - v.y) / 2 * window.innerHeight) + 'px';
+  $('pops').appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+let bumpTimer = 0;
+function addScore(n){
+  G.score += n;
+  const e = $('hScore'); e.classList.add('bump');
+  clearTimeout(bumpTimer); bumpTimer = setTimeout(() => e.classList.remove('bump'), 160);
+}
 function showBanner(html, ms=1600){
   const b = $('banner'); b.innerHTML = html; b.classList.add('show');
   clearTimeout(bannerTimer); bannerTimer = setTimeout(() => b.classList.remove('show'), ms);
@@ -1012,7 +1048,7 @@ function updateItems(dt){
     // パドル面を通るときにキャッチ判定
     if (prevZ < 0 && it.p.z >= 0 &&
         Math.abs(it.p.x - pd.x) <= pd.w/2 + 0.4 && Math.abs(it.p.y - pd.y) <= pd.h/2 + 0.4){
-      collectItem(it.type);
+      collectItem(it.type, it.p);
       burst(it.p, ITEMS[it.type].color, 8, 4);
       removeItem(it);
       return false;
@@ -1024,16 +1060,18 @@ function updateItems(dt){
     return true;
   });
 }
-function collectItem(type){
-  G.score += 50;
+const ITEM_SCORE = 300;
+function collectItem(type, pos){
+  addScore(ITEM_SCORE);
   SFX.itemGet();
   const d = ITEMS[type];
+  const at = pos ? pos.clone() : new THREE.Vector3(G.paddle.x, G.paddle.y, 0);
+  popScore(at, `+${ITEM_SCORE}<small>${d.name}</small>`, 'item', '#ffe14d');
   if (d.dur) G.fx[type] = d.dur;
   if (type === 'bomb') G.fx.bomb = 1;
   if (type === 'life') G.lives = Math.min(G.lives + 1, G.maxLives);
   if (type === 'wide') setPaddleSize();
   if (type === 'multi') splitBalls();
-  showBanner(`<span class="s">${d.name}！</span>`, 900);
   updateHUD(); updateFxHUD();
 }
 function splitBalls(){
@@ -1188,7 +1226,7 @@ function damageBlock(b, full){
   if (b.hp > 0){
     b.mesh.material = hardCrackMat;
     burst(b.mesh.position, '#d4def0', 4, 3);
-    G.score += 20;
+    addScore(20);
     SFX.hard();
     updateHUD();
     return;
@@ -1196,7 +1234,9 @@ function damageBlock(b, full){
   b.alive = false;
   blockGrp.remove(b.mesh);
   burst(b.mesh.position, b.hex);
-  G.score += b.type === 'h' ? 150 : 100;
+  const pts = b.type === 'h' ? 150 : 100;
+  addScore(pts);
+  popScore(b.mesh.position, '+' + pts, 'blk');
   SFX.block();
   // アイテム：ほしブロックは必ず、ほかはときどき
   if (b.type === 's' || Math.random() < G.diff.drop) spawnItem(pickItem(), b.mesh.position);
